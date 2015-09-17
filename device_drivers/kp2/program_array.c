@@ -1,0 +1,25 @@
+#include <linux/init.h>
+#include <linux/module.h>
+
+MODULE_LICENSE("Dual BSD/GPL");
+
+int arrcount = 0;
+static int myarray[4] = {-1, -1, -1, -1};
+module_param_array(myarray, int, &arrcount, 0000);
+
+static int hello_init(void)
+{
+	printk(KERN_ALERT"Hello World\n");
+	printk(KERN_ALERT"%d\n", arrcount);
+	return 0;
+}
+
+static void hello_exit(void)
+{
+	printk(KERN_ALERT"Good Bye\n");
+	return;
+}
+
+module_init(hello_init);
+module_exit(hello_exit);
+

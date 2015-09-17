@@ -1,0 +1,147 @@
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/version.h>
+#include <linux/types.h>
+#include <linux/kdev_t.h>
+#include <linux/fs.h>
+#include <linux/slab.h>
+#include <linux/errno.h>
+#include <linux/cdev.h>
+#include <asm/uaccess.h>
+
+
+MODULE_LICENSE("Dual BSD/GPL");
+
+int scull_open(struct inode *, struct file *);
+int scull_release(struct inode *, struct file *);
+ssize_t scull_read(struct file *, char __user *, size_t, loff_t *);
+ssize_t scull_write(struct file *, const char __user *, size_t, loff_t *);
+
+struct scull_dev
+{
+	char * data;
+	struct cdev cdev;
+};
+
+struct file_operations scull_fops = {
+	.owner = THIS_MODULE,
+	.open = scull_open,
+	.read = scull_read,
+	.write = scull_write,
+	.release = scull_release
+};
+
+struct scull_dev dev;
+dev_t dev_num;
+
+int scull_open(struct inode *in, struct file *fi)
+{
+	printk(KERN_ALERT"%s\n", __func__);
+	return 0;
+}
+
+int scull_release(struct inode *in, struct file *fi)
+{
+	printk(KERN_ALERT"%s\n", __func__);
+	return 0;
+}
+
+ssize_t scull_read(struct file *fp, char __user *buf, size_t count, loff_t *offp)
+{
+	int ret = 0;
+
+	printk(KERN_ALERT"%s\n", __func__);
+
+	if(dev.data == NULL)
+	{
+		printk(KERN_ALERT"No data in Char Device\n");
+	}
+	else
+	{
+		if((*offp + count) > strlen(dev.data))
+			count = strlen(dev.data) - *offp;
+		ret = copy_to_user(buf, dev.data + *offp, count);
+	}
+
+	printk(KERN_ALERT"%s data = %s\n", __func__, dev.data + *offp);
+
+	if(ret > 0)
+	{
+		return -EFAULT;
+	}
+	else
+	{
+		*offp += count;
+		return count;
+	}
+}
+
+ssize_t scull_write(struct file *fp, const char __user *buf, size_t count, loff_t *offp)
+{
+	int ret=0, len=0;
+	char *temp;
+
+	printk(KERN_ALERT"%s %s\n", __func__, buf);
+
+	if(dev.data == NULL)
+	{
+		printk(KERN_ALERT"scull_write- if case\n");
+
+		dev.data = kmalloc((count+1), GFP_KERNEL);
+		ret = copy_from_user(dev.data, buf, count);
+		dev.data[count] = '\0';
+	}
+	else
+	{
+		temp = kmalloc
+	}
+
+}
+
+static int __init scull_init(void)
+{
+	int error;
+
+	printk(KERN_ALERT"Initializing scull\n");
+	printk(KERN_ALERT"Getting Device Number\n");
+	error = alloc_chrdev_region(&dev_num, 0, 1, "scull");
+
+	if(error)
+	{
+		printk(KERN_ALERT"Could not allocate device numbers - Returning\n");
+		return -1;
+	}
+
+	printk(KERN_ALERT"Device number for char devices is %d\n", dev_num);
+	printk(KERN_ALERT"Major Number = %d, Minor number = %d\n", MAJOR(dev_num), MINOR(dev_num));
+
+	printk(KERN_ALERT"Doing actual registration");
+	cdev_init(&dev.cdev, &scull_fops);
+	dev.cdev.owner = THIS_MODULE;
+
+	error = cdev_add(&dev.cdev, dev_num, 1);
+	if(error)
+	{
+		printk(KERN_ALERT"Couldn't add char device to kernel - Returning \n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static void __exit scull_exit(void)
+{
+	printk(KERN_ALERT"Exiting scull\n");
+
+	printk(KERN_ALERT"Doing unregistration\n");
+	cdev_del(&dev.cdev);
+
+	printk(KERN_ALERT"Releasing the device number %d\n", dev_num);
+	unregister_chrdev_region(dev_num, 1);
+
+	return;
+}
+
+module_init(scull_init);
+module_exit(scull_exit);
+
